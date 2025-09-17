@@ -64,15 +64,15 @@
 `Merge/Union (array_merge / +)`، `Search (in_array/array_key_exists)`، `Transform (array_map/filter/reduce)`، `Ordering (sort/asort/ksort)`.
 
 **Strings:** `strlen`, `substr`, `strtolower/upper`, `str_replace`.  
-لو لغات غير إنجليزي، بافكّر في `mb_*` عشان الـUnicode.
+
 
 **Date/Time:** ذهنيًا أميل لـ `DateTimeImmutable` بدل الدوال الإجرائية البسيطة—أوضح في الـtimezones.
 
 **Validation:** `filter_var` كبوابة أمان أولى (emails/URLs…).
 
-**JSON:** `json_encode` / `json_decode` مع انتباه للترميز.
+**JSON:** `json_encode` / `json_decode` 
 
-**DB:** ي `PDO + prepared statements` كستاندرد ضد 
+
 
 
 ###  String Functions
@@ -136,7 +136,7 @@ echo "min([3, 7, -2, 9, 4]) = " . min($nums) . PHP_EOL; //-2
 **القواعد اللي بمشي عليها:**
 - **Base case** الأول—بوصلّه بسرعة عشان أضمن الخروج.
 - PHP مفيهاش **Tail-Call Optimization** معتبرة، فلو العمق كبير بحوّل لـ **iteration** أو بستعمل **explicit stack/queue**.
-- لو النتيجة كبيرة، الـ**generators** (تفكيك كسول) بتبقى لطيفة بدل تجميع ضخم في الذاكرة.
+- لو النتيجة كبيرة، الـ**generators** (تفكيك بطيء) بتبقى لطيفة بدل تجميع ضخم في الذاكرة.
 
 ---
 
