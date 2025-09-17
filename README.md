@@ -196,7 +196,7 @@ echo "Flat: " . implode(", ", flatten($cats)) ;
 
 
 
-
+**aside note** . PHP_EOL " end of line" for new line 
 
 
 
@@ -366,7 +366,7 @@ function flattenRecursive(array $xs): array {
 // 3) Max depth of a nested array ( [] => depth 1 )
 function maxDepth(mixed $x): int {
     if (!is_array($x)) return 0;          // عنصر عادي داخل array
-    if ($x === []) return 1;              // array فاضية عمقها 1
+    if ($x === []) return 1;              // array فاضية 1
     $max = 0;
     foreach ($x as $v) {
         $max = max($max, maxDepth($v));
@@ -380,7 +380,7 @@ function factorial(int $n): int {
     return $n * factorial($n - 1);
 }
 
-// 5) Fibonacci (naive recursion — استخدمي قيم صغيرة)
+// 5) Fibonacci (naive recursion — استخدم قيم صغيرة)
 function fib(int $n): int {
     if ($n <= 1) return $n;
     return fib($n - 1) + fib($n - 2);
