@@ -57,7 +57,12 @@
 - **Visibility** بتحدد الجمهور (`public`/`private`/`protected`).
 - **Immutability** عندي default: أفضّل أرجّع نسخة جديدة بدل ما أعدّل في المكان.
 
----
+**Arrow functions: fn (...) => expr — tiny one-liners for callbacks.**
+
+**Object operator: -> — used to call a method on an object.**
+ ``` bash
+ foreach ($scores as $name => $score) echo "$name:$score "; 
+``` 
 
 # Built-in toolbox — “شنطة العِدّة” بتاعتي
 **Arrays:**  
@@ -140,12 +145,64 @@ echo "min([3, 7, -2, 9, 4]) = " . min($nums) . PHP_EOL; //-2
 
 ---
 
-# الخلاصة من مفهومي (في 10 دقايق تنفيذ)
-- **Filter & Map:** عندك أسعار فيها `null` وسالب—نظّف بـ`array_filter`، وبعدين اضربي ضريبة بـ`array_map`.
-- **Reduce:** حوّل سلة مشتريات `[qty, price]` لمجموع إجمالي.
-- **Assoc Sort:** عندك users `name=>score` — رتّب بالـscore تنازليًا مع الحفاظ على المفاتيح.
-- **Function Refactor:** خدي function بتطبع—حوّليها ترجع قيمة واعملي `echo` برّه.
-- **Recursion Light:** قائمة `nested categories`—طلّعي `list` مسطحة بالأسماء.
+# الخلاصة من مفهومي (for function)
+- Filter & Map — Clean the data first (drop null/negatives), then transform what’s left (apply tax/discount) to keep your pipeline tidy.
+
+- Reduce — Fold a list into one value (e.g., sum qty * price across items) for a clear, single total.
+
+- Assoc Sort — Sort by value without losing keys (e.g., name => score descending via arsort) to preserve identity.
+
+- Function Refactor — Return values from functions and do echo outside to boost purity, testability, and reuse.
+
+- Recursion Light — Walk nested structures (categories) with a simple base case to produce a clean, flat list.
+
+```php
+// 1) Filter & Map — clean then transform
+$prices   = [100, null, -20, 50];
+$clean    = array_filter($prices, fn($p) => is_numeric($p) && $p >= 0);
+$withTax  = array_map(fn($p) => $p * 1.14, $clean);
+echo "Filtered+Tax: " . implode(", ", $withTax) ; 
+
+// 2) Reduce — list -> single number (total)
+$cart  = [[2, 50], [1, 100]]; // [qty, price]
+$total = array_reduce($cart, fn($acc, $it) => $acc + $it[0] * $it[1], 0);
+echo "Cart total: $total" . PHP_EOL;
+
+// 3) Assoc Sort — keep keys, sort by value (desc)
+$scores = ['Eman' => 80, 'Yard' => 95, 'Omar' => 60];
+arsort($scores); // preserves keys
+echo "Scores (desc): ";
+foreach ($scores as $name => $score) echo "$name:$score ";
+echo PHP_EOL;
+
+// 4) Function Refactor — return value; echo outside
+function formatSum(array $xs): string {
+    return "Sum=" . array_sum($xs); // pure return (no echo)
+}
+echo formatSum([1, 2, 3]) ; 
+
+// 5) Recursion Light — flatten nested categories
+$cats = ['Hardware', ['Laptops', ['Ultrabook']], 'Accessories'];
+function flatten(array $xs): array {
+    $out = [];
+    foreach ($xs as $v) {
+        $out = is_array($v) ? array_merge($out, flatten($v)) : array_merge($out, [$v]);
+    }
+    return $out;
+}
+echo "Flat: " . implode(", ", flatten($cats)) ; 
+```
+
+
+
+
+
+
+
+
+
+
+
 
 ---
 
