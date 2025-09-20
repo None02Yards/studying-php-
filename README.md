@@ -1,119 +1,110 @@
 # Arrays — Deep Dive
-أنا بفكّر في Array في PHP كـ `Ordered Map`: خليط من `hash table` (سرعة الوصول بالمفتاح) و`list` (تحافظ على ترتيب الإدراج).  
+I think of a PHP array as an **Ordered Map**: a mix of a **hash table** (fast key lookup) and a **list** (preserves insertion order).
 
-**نِقَاطي الذهبية:**
-- **Insertion order** بيتحافظ عليه عمومًا؛ بعض الدوال بتعيد فهرسة الأرقام—ده طبيعي.
-- **Key types:** `int` أو `string`. لو المفتاح `"42"` (string رقمية) PHP بتحوّله `int 42`—دي من أشهر الـgotchas وقت الدمج.
-- **Copy-on-write:** مفيش نسخ فعلي غير عند التعديل—ده أحسن للأداء. لكن لو اشتغلت **by reference** هتلمس الأصل.
-- **Union (`+`) vs `array_merge`:** لو عايزة أحافظ على اليسار كمرجع، بروح للـ `+`. لو عايزة أدمج فعليًا بقواعد اليمين وإعادة فهرسة، بروح لـ `array_merge`.
+**My golden points:**
+- **Insertion order** is generally preserved; some functions will **reindex numeric keys**—that’s expected.
+- **Key types:** `int` or `string`. If a key is the numeric string `"42"`, PHP will cast it to `int 42`—a classic gotcha during merges.
+- **Copy-on-write:** No physical copy happens until you mutate—great for performance. If you pass **by reference**, you’ll touch the original.
+- **Union (`+`) vs `array_merge`:** If you want to **keep left-hand keys** and only add non-existing keys from the right, use `+`. If you want a true **merge** that **overwrites from the right** and may **reindex numeric keys**, use `array_merge`.
 - **Sorting families:**
-  - `sort` / `rsort` للقوائم (وبيُعيد فهرسة).
-  - `asort` / `arsort` لو يهمني المفتاح وأرتّب بالقيمة.
-  - `ksort` / `krsort` لو الترتيب بالمفتاح أهم.
+  - `sort` / `rsort` for plain lists (**reindexes**).
+  - `asort` / `arsort` when you care about **keys**, sort by **value**.
+  - `ksort` / `krsort` when you care about **keys**, sort **by key**.
 
-**Multidimensional:** حلوة للجداول—بس لو الشكل ثابت، الرفع لـ `class/DTO` بيخلي القراءة والاختبار أحسن.
+**Multidimensional arrays:** Great for table-like data; if the shape is fixed and fields are known, promoting to a `class`/DTO can improve readability and testability.
 
-**Guardrail شخصي:** بعد أي تعديل كبير، بعمل “health check” على المفاتيح والتسلسل—لو في شك، باستخدم `array_values` / `array_keys` لإعادة الضبط (ذهنيًا أو بالكود لو محتاجة).
+**Personal guardrail:** After any big change—**sort/merge/unset**—I do a “health check” on keys and order. If in doubt, I “reset” with `array_values` / `array_keys` (mentally or in code).
 
-
-####  sort/merge/unset، معنى كدا إنه بعد أي 
-**array_values/array_keys بستخدم لإعادة الضبط** 
-
-
+> **Note:** After any **sort/merge/unset**, it’s normal to “reset” using `array_values/array_keys`.
 
 ---
 
-# Functions & Methods — Deep Dive 
-أنا بتعامل مع الـ **function** كـ **contract** واضح:
+# Functions & Methods — Deep Dive
+I treat a **function** as a clear **contract**:
 
-- **Types:** بحدد `parameter/return types` (nullable/union) عشان أقلل أي confusion أو لخبطة ممكن تحصل في الـ output.  
-- **Defaults/Variadic:** بستخدمهم لما يقلّلوا الضوضاء.
-- **Return types:** لما مش هرجع حاجة—المعنى بالنسبة لي “`void`” ذهنيًا؛ ولو المسار لا يعود (`throw/exit`) يبقى “`never`”.
+- **Types:** I specify `parameter/return types` (nullable/union) to reduce confusion in the output.
+- **Defaults/Variadic:** I use them when they cut noise for callers.
+- **Return types:** If the function doesn’t return anything, that’s conceptually **`void`**; if a path never returns (throws/exits), that’s conceptually **`never`**.
 
+**Common patterns**
+1. **Nested Function Definition** → define a function inside another function.  
+2. **Anonymous Functions / Closures** → no name; can be stored or returned.  
+3. **Returning a Function** → outer function returns an inner function.  
+4. **Passing a Function** → outer function accepts a function (callable) as a parameter.  
+5. **Recursive Functions** → a function calls itself.
 
-**Nested Function Definition** → تعريف function جوه function.  
-2. **Anonymous Functions / Closures** → function بدون اسم، ممكن تتخزن أو تترجع.  
-3. **Returning a Function** → outer function ترجع inner function.  
-4. **Passing a Function** → outer تاخد function كـ parameter.  
-5. **Recursive Functions** → function تنادي نفسها
+- **Functions:** both **Predefined (built-in)** and **User-defined**.  
+- **User-defined flavors:** Normal, Anonymous, Callback, Recursive.
 
-- Functions (Predefined & User-defined).  
-- User-defined: Normal, Anonymous, Callback, Recursive.  
+**Design anchored in purity**
+- **Core logic** should be **pure** (compute a value, **no I/O**).
+- Push **I/O** (files/DB/echo) to the **edges**—that boosts **testability**.
 
+**Nested functions as a pipeline:**  
+Build logic as a **pure** chain `map → filter → reduce`. Why? A **modular pipeline** is easy to reuse—model steps as small **callables** and compose them.
 
+**Methods (OOP)**
+- **Instance** when you rely on per-object **state**.
+- **Static** when it’s a stateless, utility-style operation.
+- **Visibility** controls audience (`public`/`private`/`protected`).
+- **Immutability** (my default bias): return a **new** value instead of mutating in place.
 
-**Design مبني على purity:**
-- الـ **core logic** = **pure** (ترجع قيمة، من غير I/O).
-- الـ **I/O** (ملفات/DB/echo) بخليه في الأطراف—ده بيرفع **testability**.
+**Arrow functions:** `fn (...) => expr` — tiny one-liners for callbacks.  
+**Object operator:** `->` — used to call a method on an object.
 
-**ملخص لفكرة function nested in function**: اعتبرها **pipeline**  
-الفكرة: ابني الـlogic كسلسلة `map → filter → reduce` (**pure**).  
-ليه مهم؟ **modular pipeline** وقابل لإعادة الاستخدام.  
-بنطبق كل ده بإننا بنحوّل خطوات المعالجة لمجموعة **callables** صغيرة وركّبيهم.
+```php
+<?php
+foreach ($scores as $name => $score) echo "$name:$score ";
+```
+---
 
-**Methods (OOP):**
-- **Instance** لما في state خاصّة بالكائن.
-- **Static** لو العملية خدمية وما بتعتمدش على state.
-- **Visibility** بتحدد الجمهور (`public`/`private`/`protected`).
-- **Immutability** عندي default: أفضّل أرجّع نسخة جديدة بدل ما أعدّل في المكان.
-
-**Arrow functions: fn (...) => expr — tiny one-liners for callbacks.**
-
-**Object operator: -> — used to call a method on an object.**
- ``` bash
- foreach ($scores as $name => $score) echo "$name:$score "; 
-``` 
-
-# Built-in toolbox — “شنطة العِدّة” بتاعتي
+# Built-in toolbox (my go-to set)
 **Arrays:**  
-`Merge/Union (array_merge / +)`، `Search (in_array/array_key_exists)`، `Transform (array_map/filter/reduce)`، `Ordering (sort/asort/ksort)`.
+`array_merge / +` (merge/union), `in_array/array_key_exists` (search), `array_map/filter/reduce` (transform), `sort/asort/ksort` (ordering).
 
-**Strings:** `strlen`, `substr`, `strtolower/upper`, `str_replace`.  
+**Strings:** `strlen`, `substr`, `strtolower/strtoupper`, `str_replace`.
 
+**Date/Time:** I prefer `DateTimeImmutable` over bare procedural functions—time zones are clearer.
 
-**Date/Time:** ذهنيًا أميل لـ `DateTimeImmutable` بدل الدوال الإجرائية البسيطة—أوضح في الـtimezones.
+**Validation:** `filter_var` as a first safety gate (emails/URLs…).
 
-**Validation:** `filter_var` كبوابة أمان أولى (emails/URLs…).
+**JSON:** `json_encode` / `json_decode`.
 
-**JSON:** `json_encode` / `json_decode` 
+---
 
-
-
-
-###  String Functions
+### String Functions
 - `strlen`, `strtolower`, `strtoupper`, `substr`, `str_replace`.
 
-###  Array Functions
+### Array Functions
 - `count`, `array_merge`, `array_push`, `in_array`.
 
-###  Math Functions
+### Math Functions
 - `abs`, `round`, `rand`, `max`, `min`.
 
-###  Date & Time Functions
+### Date & Time Functions
 - `date`, `time`, `strtotime`, `mktime`.
 
 ### File Functions
 - `fopen`, `fread`, `fwrite`, `file_get_contents`.
 
 ### Variable Handling
-- `isset`, `empty`, `unset`, `gettype`
+- `isset`, `empty`, `unset`, `gettype`.
 
+---
 
-_______________________________
-
-####  `abs`, `round`, `rand`, `max`, `min`.
-
+### Math mini-demo (`abs`, `round`, `rand`, `max`, `min`)
 ```php
+<?php
 // ===== abs() =====
 echo "abs examples:" . PHP_EOL;
-echo "abs(-7) = " . abs(-7) . PHP_EOL;          // 7
-echo "abs(3.5 - 10) = " . abs(3.5 - 10) . PHP_EOL; // 6.5
+echo "abs(-7) = " . abs(-7) . PHP_EOL;                 // 7
+echo "abs(3.5 - 10) = " . abs(3.5 - 10) . PHP_EOL;     // 6.5
 
 echo PHP_EOL;
 
 // ===== round() =====
 echo "round examples:" . PHP_EOL;
-echo "round(3.14159) = " . round(3.14159) . PHP_EOL;       // 3 (افتراضي: 0 منازل)
+echo "round(3.14159) = " . round(3.14159) . PHP_EOL;       // 3 (default: 0 decimals)
 echo "round(3.14159, 2) = " . round(3.14159, 2) . PHP_EOL; // 3.14
 echo "round(2.6) = " . round(2.6) . PHP_EOL;               // 3
 echo "round(2.4) = " . round(2.4) . PHP_EOL;               // 2
@@ -122,7 +113,7 @@ echo PHP_EOL;
 
 // ===== rand() =====
 echo "rand examples:" . PHP_EOL;
-echo "rand(1, 10) = " . rand(1, 10) . PHP_EOL;   // رقم عشوائي بين 1 و 10
+echo "rand(1, 10) = " . rand(1, 10) . PHP_EOL;   // random between 1 and 10
 echo "rand(100, 999) = " . rand(100, 999) . PHP_EOL;
 
 echo PHP_EOL;
@@ -130,38 +121,34 @@ echo PHP_EOL;
 // ===== max() / min() =====
 $nums = [3, 7, -2, 9, 4];
 echo "max([3, 7, -2, 9, 4]) = " . max($nums) . PHP_EOL; // 9
-echo "min([3, 7, -2, 9, 4]) = " . min($nums) . PHP_EOL; //-2 
+echo "min([3, 7, -2, 9, 4]) = " . min($nums) . PHP_EOL; // -2
 ```
+---
+
+# Recursion — When and why I use it
+I reach for **recursion** when the problem is **hierarchical** (trees/graphs) or fits **divide-and-conquer**.
+
+**Rules I follow:**
+- Put the **base case** first—reach it quickly to guarantee termination.
+- PHP has no significant **Tail-Call Optimization**; for deep recursion I switch to **iteration** or use an **explicit stack/queue**.
+- For large outputs, **generators** can provide lazy iteration instead of building huge arrays.
 
 ---
 
-# Recursion — إمتى بستخدمها وليه
-أنا بلجأ للـ **recursion** لما المشكلة طبيعتها هرمية (trees/graphs) أو **divide-and-conquer**.  
-
-**القواعد اللي بمشي عليها:**
-- **Base case** الأول—بوصلّه بسرعة عشان أضمن الخروج.
-- PHP مفيهاش **Tail-Call Optimization** معتبرة، فلو العمق كبير بحوّل لـ **iteration** أو بستعمل **explicit stack/queue**.
-- لو النتيجة كبيرة، الـ**generators** (تفكيك بطيء) بتبقى لطيفة بدل تجميع ضخم في الذاكرة.
-
----
-
-# الخلاصة من مفهومي (for function)
-- Filter & Map — Clean the data first (drop null/negatives), then transform what’s left (apply tax/discount) to keep your pipeline tidy.
-
-- Reduce — Fold a list into one value (e.g., sum qty * price across items) for a clear, single total.
-
-- Assoc Sort — Sort by value without losing keys (e.g., name => score descending via arsort) to preserve identity.
-
-- Function Refactor — Return values from functions and do echo outside to boost purity, testability, and reuse.
-
-- Recursion Light — Walk nested structures (categories) with a simple base case to produce a clean, flat list.
+# TL;DR for function patterns
+- **Filter & Map** — Clean the data (drop null/negatives), then transform the remainder (tax/discount) to keep the pipeline tidy.
+- **Reduce** — Fold a list into one value (e.g., sum `qty * price` across items) for a single, clear total.
+- **Assoc Sort** — Sort by value without losing keys (e.g., `name => score` descending using `arsort`) to preserve identity.
+- **Function Refactor** — Return values from functions and do `echo` outside to improve purity, testability, and reuse.
+- **Recursion Light** — Walk nested structures (categories) with a simple base case to produce a clean, flat list.
 
 ```php
+<?php
 // 1) Filter & Map — clean then transform
 $prices   = [100, null, -20, 50];
 $clean    = array_filter($prices, fn($p) => is_numeric($p) && $p >= 0);
 $withTax  = array_map(fn($p) => $p * 1.14, $clean);
-echo "Filtered+Tax: " . implode(", ", $withTax) ; 
+echo "Filtered+Tax: " . implode(", ", $withTax);
 
 // 2) Reduce — list -> single number (total)
 $cart  = [[2, 50], [1, 100]]; // [qty, price]
@@ -179,7 +166,7 @@ echo PHP_EOL;
 function formatSum(array $xs): string {
     return "Sum=" . array_sum($xs); // pure return (no echo)
 }
-echo formatSum([1, 2, 3]) ; 
+echo formatSum([1, 2, 3]);
 
 // 5) Recursion Light — flatten nested categories
 $cats = ['Hardware', ['Laptops', ['Ultrabook']], 'Accessories'];
@@ -190,19 +177,9 @@ function flatten(array $xs): array {
     }
     return $out;
 }
-echo "Flat: " . implode(", ", flatten($cats)) ; 
+echo "Flat: " . implode(", ", flatten($cats));
 ```
-
-
-
-
-**aside note** . PHP_EOL " end of line" for new line 
-
-
-
-
-
-
+> **Aside:** `PHP_EOL` = “end of line” (portable newline).
 
 ---
 
@@ -213,52 +190,50 @@ error_reporting(E_ALL);
 
 /*
  * 1 — Nested named function inside a function
- * الفكرة: بعمل bootstrap مرة واحدة يعرّف inner function بتفلتر الأعداد الزوجية من array.
- * بعد كده أناديها طبيعي.
+ * Idea: bootstrap once to define an inner function that filters even numbers.
+ * Then call it normally.
  */
 
 function bootstrapArrayFilters(): void {
-    // هتتبني كـ global عند أول نداء لـ bootstrapArrayFilters()
+    // Will be defined in the global function namespace on first call
     function pickEven(array $xs): array {
         return array_values(array_filter($xs, fn($x) => is_int($x) && $x % 2 === 0));
     }
 }
 
 $nums = [3, 12, 7, 8, 5, 10];
-// pickEven($nums); // لو عملتي كده قبل bootstrap → Fatal (مش متعرفة)
+// pickEven($nums); // Calling before bootstrap → Fatal (undefined)
 bootstrapArrayFilters();
 echo "Ex1 - pickEven: " . implode(", ", pickEven($nums)) . PHP_EOL; // 12, 8, 10
 ```
-
-________
+---
 
 ```php
 <?php
 /*
- * EXAMPLE 2 — Nested **closure** inside a function (returns a callable)
- * الفكرة: outer يستلم threshold ويرجع closure بتفلتر الـ array بناءً عليه.
- * ده Nested أنظف لأننا مش بنعرّف global function.
+ * EXAMPLE 2 — Nested closure inside a function (returns a callable)
+ * Idea: outer receives a threshold and returns a closure that filters an array accordingly.
+ * Cleaner than defining a global named function.
  */
 
 function makeThresholdFilter(int $t): callable {
     $filter = function(array $xs) use ($t): array {
         return array_values(array_filter($xs, fn($x) => is_numeric($x) && $x >= $t));
     };
-    return $filter; // بنرجّع function
+    return $filter; // return a function
 }
 
 $filter20 = makeThresholdFilter(20);
 echo "Ex2 - >=20: " . implode(", ", $filter20([5, 19, 20, 33, 7, 50])) . PHP_EOL; // 20, 33, 50
 ```
-
-_____________
+---
 
 ```php
 <?php
 /*
- * EXAMPLE 3 — Nested closure **inside a method** (helper محلي)
- * الفكرة: method بتعرّف helper محلي (closure) للتنسيق/المعالجة،
- * وتطبّقه على array داخليًا. مفيش أي global names اتضافت.
+ * EXAMPLE 3 — Nested closure inside a method (local helper)
+ * Idea: method defines a local helper (closure) for normalization/formatting,
+ * applies it internally. No global function names added.
  */
 
 final class Formatter
@@ -280,16 +255,15 @@ final class Formatter
 
 $f = new Formatter();
 echo "Ex3 - summarize: " . $f->summarize([10, 20, 5, 20]) . PHP_EOL;
-// مثال ناتج: count=4 | max=20 | normalized=[0.5, 1, 0.25, 1]
+// Example output: count=4 | max=20 | normalized=[0.5, 1, 0.25, 1]
 ```
-
-______________
+---
 
 ```php
 <?php
 /*
- * EXAMPLE 4 — Method تُعيد **nested function** (callable) بيستخدم state من الـobject
- * الفكرة: object عندها factor، وبتطلعلك closure بيضرب عناصر أي array في factor ده.
+ * EXAMPLE 4 — Method returns a nested function (callable) that uses object state
+ * Idea: object holds a factor; it returns a closure that scales array numbers by that factor.
  */
 
 final class VectorOps
@@ -309,20 +283,19 @@ $ops = new VectorOps(2.5);
 $scaleBy2_5 = $ops->makeScaler();
 echo "Ex4 - scale x2.5: " . implode(", ", $scaleBy2_5([1, 4, 7])) . PHP_EOL; // 2.5, 10, 17.5
 ```
-
-___________
+---
 
 ```php
 <?php
 /*
- * EXAMPLE 5 — (تحذيري/للتوضيح) Nested **named function** داخل method
- * هتتبني كـ global بعد أول نداء للـmethod. ما تعيديش تعريفها تاني!
+ * EXAMPLE 5 — (caution) Nested named function inside a method
+ * It becomes a global function name after the first call. Do not redeclare it!
  */
 
 final class Demo
 {
     public function defineInnerSum(): int {
-        // هتتبني global عند أول نداء للميثود دي
+        // Will be defined globally on first call to this method
         function inner_sum(array $xs): int {
             return array_reduce($xs, fn($a, $b) => (int)$a + (int)$b, 0);
         }
@@ -331,16 +304,15 @@ final class Demo
 }
 $d = new Demo();
 echo "Ex5 - inner_sum once: " . $d->defineInnerSum();
-// $d->defineInnerSum(); //لو فكرت تشغّل تاني → Fatal: cannot redeclare inner_sum(
+// $d->defineInnerSum(); // If you call again → Fatal: cannot redeclare inner_sum(
 ```
-
-______________________________________
+---
 
 ```php
 <?php
 /*
  * RECURSION — PURE LOGIC EXAMPLES
- * - كل الدوال بترجع قيم فقط (no I/O).
+ * - All functions return values only (no I/O).
  */
 
 // 1) Sum of array (recursive)
@@ -365,8 +337,8 @@ function flattenRecursive(array $xs): array {
 
 // 3) Max depth of a nested array ( [] => depth 1 )
 function maxDepth(mixed $x): int {
-    if (!is_array($x)) return 0;          // عنصر عادي داخل array
-    if ($x === []) return 1;              // array فاضية 1
+    if (!is_array($x)) return 0;      // a plain element inside an array
+    if ($x === []) return 1;          // empty array has depth 1
     $max = 0;
     foreach ($x as $v) {
         $max = max($max, maxDepth($v));
@@ -380,7 +352,7 @@ function factorial(int $n): int {
     return $n * factorial($n - 1);
 }
 
-// 5) Fibonacci (naive recursion — استخدم قيم صغيرة)
+// 5) Fibonacci (naive recursion — use small n)
 function fib(int $n): int {
     if ($n <= 1) return $n;
     return fib($n - 1) + fib($n - 2);
@@ -396,7 +368,7 @@ function binarySearch(array $sorted, int $target, int $lo = 0, ?int $hi = null):
     return binarySearch($sorted, $target, $mid + 1, $hi);
 }
 
-// 7) Recursive map (يطبّق fn على كل عنصر، ويحافظ على البنية لو متداخلة)
+// 7) Recursive map — apply fn to every element, preserve nested shape
 function mapRecursive(callable $fn, array $xs): array {
     $out = [];
     foreach ($xs as $k => $v) {
@@ -405,7 +377,7 @@ function mapRecursive(callable $fn, array $xs): array {
     return $out;
 }
 
-// 8) Class + recursive methods (pure): شجرة تجمع القيم وتسطّحها
+// 8) Class + recursive methods (pure): a tree that sums and flattens values
 final class Node {
     public function __construct(
         public int $value,
@@ -431,8 +403,7 @@ final class Node {
 }
 
 /* 
- * result — echo only (no side-effects elsewhere)
- * 
+ * DEMO — echo only (no side-effects elsewhere)
  */
 
 $nums          = [3, 1, 4, 1, 5, 9, 2];
@@ -469,32 +440,32 @@ echo "mapRecursive (x2): [" . implode(", ", flattenRecursive($doubledNested)) . 
 echo "Tree sum: $treeSum" . PHP_EOL;
 echo "Tree toArray: [" . implode(", ", $treeArray) . "]" . PHP_EOL;
 ```
+---
 
-________________
+## Null example
 
-## مثال على null
-
-استخدم `?string` فقط لما فعلاً مقبول ترجع `null`. غير كده حدّد نوع non-null.  
-مفيش قيمة مدخلة.  
-مش هيَرْجع `null` لما تفرض `string` وتركّب fallback بـ `??` أو قيمة افتراضية في التوقيع.
+Use `?string` **only** when returning `null` is truly acceptable. Otherwise, make the return type non-null.  
+No input provided → nullable function may return `null`.  
+Non-null strategy: enforce `string` and attach a **fallback** via `??` or a default parameter.
 
 ```php
+<?php
 declare(strict_types=1);
 
-// ممكن يرجّع null (مسموح في التوقيع)
+// May return null (nullable return type)
 function getCityMaybe(array $user): ?string {
-    // لو مفيش address أو city → null
+    // If 'address' or 'city' is missing → null
     return is_string($user['address']['city'] ?? null) ? $user['address']['city'] : null;
 }
 
-// لا يرجّع null أبداً (fallback واضح)
+// Never returns null (clear fallback)
 function getCityOrDefault(array $user, string $default = 'N/A'): string {
-    // null-safe لـ objects غير متاحة هنا؛ مع arrays نستخدم ??
+    // For arrays, use ?? to handle missing keys
     $city = $user['address']['city'] ?? '';
     return $city !== '' ? $city : $default;
 }
 
-// using only echo 
+// echo-only demo
 $u1 = ['address' => ['city' => 'Cairo']];
 $u2 = ['address' => []];
 
@@ -504,21 +475,21 @@ echo (getCityMaybe($u2) ?? 'NULL') . PHP_EOL; // NULL
 echo getCityOrDefault($u1) . PHP_EOL; // Cairo
 echo getCityOrDefault($u2) . PHP_EOL; // N/A
 ```
-
 ---
 
-## استخدام get$
-
+## Using `$_GET`
 ```php
+<?php
 declare(strict_types=1);
 
-// id لازم يبقى رقم موجب
+// id must be positive integer
 $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
-$id = $id !== null && $id !== false ? $id : 0;   // default 
-// email لازم يكون فورمات صحيح
+$id = $id !== null && $id !== false ? $id : 0;   // default
+
+// email must be a valid format
 $email = filter_input(INPUT_GET, 'email', FILTER_VALIDATE_EMAIL) ?: 'N/A';
 
-// sort لازم من مجموعة مسموح بيها (whitelist)
+// sort must be from a whitelist
 $allowedSorts = ['name', 'price_asc', 'price_desc'];
 $sort = $_GET['sort'] ?? 'name';
 $sort = in_array($sort, $allowedSorts, true) ? $sort : 'name';
@@ -527,42 +498,36 @@ echo "id=$id\n";
 echo "email=$email\n";
 echo "sort=$sort\n";
 ```
+---
 
-____________
-
-## Example 2 on using $get to prevent null
-
+## Example 2: using `$_GET` to avoid nulls
 ```php
 <?php
 declare(strict_types=1);
 
 // URL: /search.php?tags[]=php&tags[]=oop&tags[]=
-$tags = $_GET['tags'] ?? [];                      // لو مفيش ⇒ []
-$tags = is_array($tags) ? $tags : [];             // ضمان array
-$tags = array_values(array_filter(                 // نظافة: أشيل الفاضي وأضمن strings
+$tags = $_GET['tags'] ?? [];                      // default []
+$tags = is_array($tags) ? $tags : [];             // ensure array
+$tags = array_values(array_filter(                 // clean: drop empty, ensure strings
     array_map(fn($t) => is_string($t) ? trim($t) : '', $tags),
     fn($t) => $t !== ''
 ));
 
 echo "tags=[" . implode(',', $tags) . "]\n";
 ```
-
-_____________
+---
 
 ## #3
-
 ```php
 <?php
 declare(strict_types=1);
 
-// URL:
-// /products.php?page=2&q=iphone
+// URL example: /products.php?page=2&q=iphone
 
-$page = (int)($_GET['page'] ?? 1);          // لو مفيش page ⇒ 1
-$q    = trim((string)($_GET['q'] ?? ''));   // لو مفيش q ⇒ ""
+$page = (int)($_GET['page'] ?? 1);          // default page = 1
+$q    = trim((string)($_GET['q'] ?? ''));   // default query = ""
 
 echo "page=$page\n";
 echo "q=$q\n";
 ```
-
-مفيش `null` بتطلع؛ عندك لان كل الـ defaults واضحة بمعنى النوع واضح: `int` للـpage، `string` للـq .
+No `null` leaks here; defaults make the **types explicit**: `int` for `page`, `string` for `q`.
